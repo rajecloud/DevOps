@@ -1,0 +1,23 @@
+Beside above solutions, there is a more "COMMON" way - directly delete the largest space consumer from Linux machine. You can follow the below steps:
+
+Login to Jenkins machine (Putty)
+cd to the Jenkins installation path
+Using ls -lart to list out hidden folder also, normally jenkin installation is placed in .jenkins/ folder
+
+[xxxxx ~]$ ls -lart
+
+drwxrwxr-x 12 xxxx 4096 Feb 8 02:08 .jenkins/
+
+list out the folders spaces
+Use df -h to show Disk space in high level
+
+du -sh ./*/ to list out total memory for each subfolder in current path.
+
+du -a /etc/ | sort -n -r | head -n 10 will list top 10 directories eating disk space in /etc/
+
+Delete old build or other large size folder
+enter image description here
+
+Normally ./job/ folder or ./workspace/ folder can be the largest folder. Please go inside and delete base on you need (DO NOT delete entire folder).
+
+rm -rf theFolderToDelete

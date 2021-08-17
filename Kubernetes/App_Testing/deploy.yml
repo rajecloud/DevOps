@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ce-review
+  labels:
+    app: ce-review
+    project: rnd-repo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      project: rnd-repo
+  template:
+    metadata:
+      name: ce-review
+      labels:
+        project: rnd-repo
+    spec:
+      containers:
+        - name: ce-review
+          image: localhost:5000/ce-review:15
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7070
+          resources:
+            requests:
+              cpu: 1
+              memory: 1Gi
+          terminationMessagePath: /tmp/mylogs
+          volumeMounts:
+            - mountPath: /opt/ce-review/src/main/resources/
+              subPath: cereview.properties
+              name: config
+      volumes:
+        - name: config
+          configMap:
+            name: ce-review-config
+
+
+

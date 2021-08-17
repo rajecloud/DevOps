@@ -1,0 +1,165 @@
+//properties([pipelineTriggers([githubPush()])])
+
+pipeline {
+
+	agent any 
+
+	options {
+
+		buildDiscarder(logRotator(numToKeepStr: '5'))
+		disableConcurrentBuilds()
+	}
+
+	parameters {
+
+		choice(name: 'Executable_Format', choices: ['Both'], description: 'You can choose build output Executable as per your required platform')
+		//booleanParam (name: 'ExecuteTest', defaultValue: true, description: 'Uncheck the box if you want to skip the test stage on this pipeline')
+		string(name: 'current_status', defaultValue: 'closed', description: 'Check the box if pull request is closed' )
+		booleanParam(name: 'merged', defaultValue: true, description: 'Uncheck the box if merge not happened')
+	}
+
+
+	tools {
+
+		go 'Local_GO_1.14'
+	}
+
+	stages {
+
+			stage('Condition Confirmation'){
+
+				when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}
+
+              	steps{
+
+					echo 'Condition met for Build process' 
+              		echo 'Users merged their pull request with branch on Github, hence starting the pipeline execution'
+              	}
+			}
+
+			stage('Code Checkout'){
+
+					when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}
+
+					steps{
+
+						step([$class: 'WsCleanup'])
+
+						echo "Cloning the LEDGER_GO project from Github"
+						checkout scm
+
+						echo "Code has been checked out into ${JENKINS_HOME}/workspace/${JOB_NAME} workspace..!"
+
+					}
+				}
+
+			stage('Version and Installation Details'){
+
+					when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}
+
+					steps{
+
+						sh '''
+
+						go version 
+						echo "go1.14 version has been installed"
+					
+						'''
+					}
+
+				}
+
+			stage('Building the project'){
+
+				when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}
+
+				steps{
+
+					script {
+		 
+            				withEnv(["GOPATH=${JENKINS_HOME}/jobs/${JOB_NAME}/builds/${BUILD_ID}"]) 
+            				{				
+                				env.PATH="${GOPATH}/bin:$PATH"
+
+
+								
+								if (params.Executable_Format == 'Both')
+								{
+
+								echo 'Both (Linux and Windows) platform has been selected, hence generating both executable formats'
+
+								sh 'env GOOS=windows GOARCH=386 go build -v' 
+								sh 'env GOOS=linux GOARCH=amd64 go build -v'
+
+								echo 'Build processed successfully and both (linux and windows) executable files has been stored'
+
+
+								echo 'Storing Build output in other directory as a backup use '
+
+								/*sh '''
+
+										mkdir -p ${JENKINS_HOME}/Go_Ledger/${JOB_NAME}/${BUILD_ID}/
+
+										cp -f ${JENKINS_HOME}/workspace/${JOB_NAME}/*.exe ${JENKINS_HOME}/Go_Ledger/${JOB_NAME}/${BUILD_ID}/
+
+										cp -f ${JENKINS_HOME}/workspace/${JOB_NAME}/ledger ${JENKINS_HOME}/Go_Ledger/${JOB_NAME}/${BUILD_ID}/
+									
+									'''*/
+
+								echo 'Archiving the artifacts for further deployment in future'
+
+								archiveArtifacts artifacts: '**/ledger', fingerprint: true, onlyIfSuccessful: true
+
+								archiveArtifacts artifacts: '**/*.exe', fingerprint: true, onlyIfSuccessful: true
+
+								}
+							}
+						}
+					}
+			}
+				
+			/*stage('Testing the project'){
+
+					when{
+
+                		expression{
+
+                    		return params.current_status == "closed" && params.merged == true 
+                    		params.executeTest == true
+
+                		}
+            		}		
+
+					steps{
+
+						echo ' Checkbox selected, Hence Test execution is starting the process..~'
+
+
+						sh 'go vet && go test --cover -v'
+
+						echo 'Test execution completed without any issue..!'
+					}
+			}*/
+
+	}
+
+	/*post {
+
+		failure{
+
+			mail to:"ekarthi@bankcbw.org", subject:"Build SUCCESS: Job ${env.JOB_NAME} and ${env.BUILD_NUMBER}", body: "Without any failure, Pipeline has processed the full flow successfully..!"
+		}
+	}*/
+}

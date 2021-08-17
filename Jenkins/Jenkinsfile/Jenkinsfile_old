@@ -1,0 +1,142 @@
+pipeline {
+    
+    agent any
+
+    tools {
+
+        go 'Local_GO_1.14' //Nodejs version 10.14.1 installed and locally configured into Jenkins with path.
+    }
+
+    parameters {
+
+        booleanParam (name: 'executeTest', defaultValue: true, description: 'Select the box to execute the unit test with build') 
+        //Parameter for exclude or execute test process with build
+    }
+
+    stages{
+
+        //Code has been checking out from review-cs-integration and cleaning up the workspace directory for clean build. 
+
+        stage('Git Checkout') {
+            
+            steps {
+                step([$class: 'WsCleanup'])
+                
+                checkout scm
+
+                echo "Code has been checked out from ${Local_Branch} branch"  
+            }
+        }
+
+        stage('Installing the Dependencies and Building the UI package'){
+            //Installing the required dependencies for angular build process and packaging it under node_modules before build start
+
+            steps {
+
+                sh '''
+
+                echo 'Changing the UI directory to perform Angular build first'
+                cd ce-review/ui
+                
+                echo 'Installing all the required dependecies and creating node_modules package'
+                npm install
+
+                echo 'Build process started with installed package'
+                ng build --prod
+
+                echo 'Angular Build processed and completed succesfully..!'
+                
+                '''
+            }
+        }
+            
+        stage('Build using Gradle'){
+
+            //Below steps are used to get into the ce-review folder inside review-cs-intergartion branch to perform the build process with gradle.build file
+
+            //We can reduce these below all steps by adding these commands in a separate .sh file to call it from here and pushing that file into project source folder for script execution
+                
+                steps{
+                
+		              sh '''
+
+                      cd ce-review
+                      echo 'Directory changed back to ce-review for gradle build process'
+
+                      echo 'Creating the gradle wrapper folder'
+                      gradle wrapper
+
+                      echo 'Execute permission provided to ./gradlew'
+                      chmod +x ./gradlew
+
+                      ./gradlew build -x test
+
+                      echo 'Gradle Build processed and completed succesfully..!'
+
+                      '''      
+                  }
+
+        }
+
+        stage('Storing Build Output'){
+            //Extra step, Output is already archiving and storing for future purpose but still just to take backup of our files before workspace cleaned.
+
+                steps{
+
+                    sh "mkdir -p WarFile_Output/${env.JOB_NAME}/${env.BUILD_NUMBER}" //Creating a new folder for war files
+                    sh "ln -s /var/lib/jenkins/workspace/Multi_Pipe/ce-review/build/libs/* WarFile_Output/${env.JOB_NAME}/${env.BUILD_NUMBER}/" //Making hard link with the war files source folder ({JENKINS_HOME}/workspace/Job name/build/libs/*)
+
+                }
+
+        }
+
+        stage('Build with Unit Test'){ //Parameter has been created to execute with or without unit tests along with build during job execution. If we uncheck the it will skip the tests during job run.
+
+            when{
+
+                expression{
+
+                    params.executeTest == true
+                }
+            }
+
+            steps{
+
+                echo 'Unit Tests started with build'
+
+                script {
+                    try {
+                        sh './gradlew clean test --no-daemon --scan' //Run a tests with detailed log scanning
+                    } finally {
+                        junit '**/build/test-results/test/*.xml' //Make the junit test results available in any case (success & failure)
+                    }
+                }
+
+            }    
+        
+        }
+
+    }
+
+    post{
+
+        always {
+
+            archiveArtifacts artifacts: '**/*.war', fingerprint: true 
+            //Currently Master node is only used, artifacts will keep each build war file until or unless we manually delete it
+
+            echo 'Build Process is done successfully and war file has been archived from build directory..!'
+
+        } 
+
+        success {
+
+            //Configured mail server with Jenkins to send out the buil process status to official email id. We can get status of anything if we needed thru email.
+
+            mail to:"ekarthi@bankcbw.org", subject:"Build SUCCESS: ${env.JOB_NAME} and ${env.BUILD_NUMBER}", body: "Without any failure, All the Build processed succesfully and war has been stored/archived"
+
+        }
+
+    }
+}
+

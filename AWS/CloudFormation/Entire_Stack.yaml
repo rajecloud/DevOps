@@ -1,0 +1,970 @@
+---
+
+Description:  Creating the Entire Infra stack for Application
+
+Parameters:
+  EnvironmentName:
+    Description: Name which is using the entire stack
+    Type: String
+    ConstraintDescription: Please provide the application name here to identify all resources easily
+
+  VpcCIDR:
+    Description: CIDR for VPC, make sure it won't conflict with your other stacks
+    Type: String
+    Default: 172.33.0.0/16
+    ConstraintDescription: Please enter the IP range (CIDR notation) for this VPC
+
+  VisaProxyPublicSubnetCIDR:
+    Description: CIDR for Proxy Subnet in AZ-a
+    Type: String
+    Default: 172.33.0.0/20
+    ConstraintDescription: Please enter the IP range (CIDR notation) for the Proxy Subnet
+
+  VisaBastionPublicSubnetCIDR:
+    Description: CIDR for Bastion Subnet in AZ-b
+    Type: String
+    Default: 172.33.64.0/20
+    ConstraintDescription: Please enter the IP range (CIDR notation) for the Bastion Subnet
+
+  VisaMidLayerPrivateSubnetCIDR:
+    Description: CIDR for Middle Layer Subnet where all the applications has been deployed
+    Type: String
+    Default: 172.33.16.0/20
+    ConstraintDescription: Please enter the IP range (CIDR notation) for the Mid Layer Subnet
+
+  VisaMongoPrivateSubnetOneCIDR:
+    Description: CIDR for Mongo Private Subnet in AZ-a
+    Type: String
+    Default: 172.33.80.0/20
+    ConstraintDescription: Please enter the IP range (CIDR notation) for the Mongo Subnet in the First AZ
+
+  VisaMongoPrivateSubnetTwoCIDR:
+    Description: CIDR for Mongo Private Subnet in AZ-b
+    Type: String
+    Default: 172.33.32.0/20
+    ConstraintDescription: Please enter the IP range (CIDR notation) for the Mongo Subnet in the Second AZ
+
+  VisaMongoPrivateSubnetThreeCIDR:
+    Description: CIDR for Mongo Private Subnet in AZ-c
+    Type: String
+    Default: 172.33.48.0/20
+    ConstraintDescription: Please enter the IP range (CIDR notation) for the Mongo Subnet in the Third AZ
+
+  MyKeyName:
+    Description: EC2 Instance Key
+    Type: "AWS::EC2::KeyPair::KeyName"
+    ConstraintDescription: Select the Key pair which you want to use for creating Instances programmatic access
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      "HVM64": "ami-0ac80df6eff0e70b5"
+    us-east-2:
+      "HVM64": "ami-0a63f96e85105c6d3"
+    us-west-1:
+      "HVM64": "ami-0d705db840ec5f0c5"
+    us-west-2:
+      "HVM64": "ami-003634241a8fcdec0"
+    ap-south-1:
+      "HVM64": "ami-02d55cb47e83a99a0"
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Visa-Stack-VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Visa IGW
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  VisaProxyPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref VisaProxyPublicSubnetCIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Visa-Proxy-Public-Subnet2a
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  VisaBastionPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref VisaBastionPublicSubnetCIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: Visa-Bastion-Public-Subnet2b
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  VisaMidLayerPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref VisaMidLayerPrivateSubnetCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Visa-Mid-Layer-Subnet2a
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  VisaMongoPrivateSubnetOne:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref VisaMongoPrivateSubnetOneCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Visa-Mongo-Private-Subnet2a
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  VisaMongoPrivateSubnetTwo:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref VisaMongoPrivateSubnetTwoCIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Visa-Mongo-Private-Subnet2b
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  VisaMongoPrivateSubnetThree:
+      Type: AWS::EC2::Subnet
+      Properties:
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [ 2, !GetAZs  '' ]
+        CidrBlock: !Ref VisaMongoPrivateSubnetThreeCIDR
+        MapPublicIpOnLaunch: false
+        Tags:
+          - Key: Name
+            Value: Visa-Mongo-Private-Subnet2c
+          - Key: App
+            Value: !Ref EnvironmentName
+
+  NatGatewayEIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIP.AllocationId
+      SubnetId: !Ref VisaProxyPublicSubnet
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Visa-Public-Subnets-RouteTable
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  DefaultPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  ProxySubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref VisaProxyPublicSubnet
+
+  BastionSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref VisaBastionPublicSubnet
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Visa-Private-Subnets-RouteTable
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  DefaultPrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  MidLayerRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref VisaMidLayerPrivateSubnet
+
+  MongoSubnet2aRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref VisaMongoPrivateSubnetOne
+
+  MongoSubnet2bRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref VisaMongoPrivateSubnetTwo
+
+  MongoSubnet2cRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref VisaMongoPrivateSubnetThree
+
+  EFSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Security group for Mount Target rules"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Visa EFS SG
+        - Key: App
+          Value: Visa
+
+  EFSSecurityGroupIngressFirst:
+    DependsOn: EFSSecurityGroup
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      FromPort: 2049
+      ToPort: 2049
+      IpProtocol: tcp
+      Description: "Opening this port for Proxy to access on EFS"
+      GroupId: !Ref EFSSecurityGroup
+      SourceSecurityGroupId: !GetAtt ProxySecurityGroup.GroupId
+
+  EFSGroupIngressSecond:
+      DependsOn: EFSSecurityGroup
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        FromPort: 2049
+        ToPort: 2049
+        IpProtocol: tcp
+        Description: "Opening this port for VC to access on EFS"
+        GroupId: !Ref EFSSecurityGroup
+        SourceSecurityGroupId: !GetAtt VCSecurityGroup.GroupId
+
+  FileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      PerformanceMode: generalPurpose
+      FileSystemTags:
+        - Key: Name
+          Value:
+            Ref: EnvironmentName
+
+  MountTarget:
+      Type: AWS::EFS::MountTarget
+      Properties:
+        FileSystemId:
+          Ref: FileSystem
+        SubnetId:
+          Ref: VisaProxyPublicSubnet
+        SecurityGroups:
+          - Ref: EFSSecurityGroup
+
+  VisaBastionInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaBastionPublicSubnet
+      SecurityGroupIds:
+        - !Ref BastionSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Bastion
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  BastionSecurityGroup:
+    DependsOn: VPC
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Creating separate SG to access all instance as a Bastion"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - FromPort: 22
+          ToPort: 22
+          CidrIp: 70.163.40.37/32
+          IpProtocol: tcp
+          Description: "Allowing NetXd Dev Public IP to access on Port 22"
+      Tags:
+        - Key: Name
+          Value: Visa Bastion SG
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  VisaProxyInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaProxyPublicSubnet
+      SecurityGroupIds:
+        - !Ref ProxySecurityGroup
+        - !Ref EFSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Proxy
+        - Key: App
+          Value: !Ref EnvironmentName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          sudo apt-get update
+          sudo apt-get install nginx -y
+          sleep 2
+          sudo apt-get start nginx
+          sudo apt-get enable nginx
+          sleep 2
+          sudo mkdir -p /data
+          sudo chmod 0755 /data
+          sudo mount -t efs -o tls ${FileSystem}.efs.${AWS::Region}.amazonaws.com:/ /data
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  ProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: BastionSecurityGroup
+    Properties:
+        GroupDescription: "Creating SG for proxy to allow open access"
+        VpcId: !Ref VPC
+        SecurityGroupIngress:
+          - FromPort: 80
+            ToPort: 80
+            IpProtocol: tcp
+            CidrIp: 0.0.0.0/0
+            Description: "Allowing public access on port 80"
+          - FromPort: 443
+            ToPort: 443
+            IpProtocol: tcp
+            CidrIp: 0.0.0.0/0
+            Description: "Allowing public access on port 443"
+          - FromPort: 22
+            ToPort: 22
+            IpProtocol: tcp
+            CidrIp: 198.241.175.62/32
+            Description: "Configured SFTP on port 22 here, so whitelisted the special IPs which visa use to connect for file uploads"
+          - FromPort: 22
+            ToPort: 22
+            IpProtocol: tcp
+            CidrIp: 70.163.40.37/32
+            Description: "Allowing dev network to access SFTP for just testing purpose"
+          - FromPort: 22
+            ToPort: 22
+            IpProtocol: tcp
+            CidrIp: 198.241.175.64/32
+            Description: "Configured SFTP on port 22 here, so whitelisted the special IPs which visa use to connect for file uploads"
+          - FromPort: 22
+            ToPort: 22
+            IpProtocol: tcp
+            CidrIp: 198.241.195.207/32
+            Description: "Configured SFTP on port 22 here, so whitelisted the special IPs which visa use to connect for file uploads"
+          - FromPort: 2222
+            ToPort: 2222
+            IpProtocol: tcp
+            CidrIp: 70.163.40.37/32
+            Description: "Allowing dev network to access SSH on port 2222"
+        Tags:
+          - Key: Name
+            Value: Visa Proxy SG
+          - Key: App
+            Value: !Ref EnvironmentName
+
+  ProxySecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: ProxySecurityGroup
+    Properties:
+      FromPort: 22
+      ToPort: 22
+      IpProtocol: tcp
+      GroupId: !Ref ProxySecurityGroup
+      SourceSecurityGroupId: !GetAtt BastionSecurityGroup.GroupId
+      Description: "Allowing Bastion on Port 22"
+
+  VisaVCInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMidLayerPrivateSubnet
+      SecurityGroupIds:
+        - !Ref VCSecurityGroup
+        - !Ref EFSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-VC
+        - Key: App
+          Value: !Ref EnvironmentName
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          sudo apt-get update
+          sleep 2
+          sudo mkdir -p /data
+          sudo chmod 0755 /data
+          sudo mount -t efs -o tls ${FileSystem}.efs.${AWS::Region}.amazonaws.com:/ /data
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  VCSecurityGroup:
+    DependsOn: VPC
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Creating SG for Visa Connector separately to allow specific port access"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Visa-VC-SG
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  VCSecurityGroupIngressFirst:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: VCSecurityGroup
+    Properties:
+      FromPort: 22
+      ToPort: 22
+      IpProtocol: tcp
+      GroupId: !Ref VCSecurityGroup
+      SourceSecurityGroupId: !GetAtt BastionSecurityGroup.GroupId
+      Description: "Allowing Bastion SG to access Port 22 for SSH"
+
+  VCSecurityGroupIngressSecond:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: VCSecurityGroup
+    Properties:
+      FromPort: 7000
+      ToPort: 7000
+      IpProtocol: tcp
+      GroupId: !Ref VCSecurityGroup
+      SourceSecurityGroupId: !GetAtt ProxySecurityGroup.GroupId
+      Description: "Allowing Proxy to access the VC application port on 7000"
+
+  VisaNSInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMidLayerPrivateSubnet
+      SecurityGroupIds:
+        - !Ref NSSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Name-Screening
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  NSSecurityGroup:
+    DependsOn: VPC
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Creating SG for Name Screening to allow specific port access"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Visa-NS-SG
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  NSSecurityGroupIngressFirst:
+     Type: AWS::EC2::SecurityGroupIngress
+     DependsOn: NSSecurityGroup
+     Properties:
+        FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+        GroupId: !Ref NSSecurityGroup
+        SourceSecurityGroupId: !GetAtt BastionSecurityGroup.GroupId
+        Description: "Allowing Bastion SG to access Port 22 for SSH"
+
+  NSSecurityGroupIngressSecond:
+     Type: AWS::EC2::SecurityGroupIngress
+     DependsOn: NSSecurityGroup
+     Properties:
+        FromPort: 7001
+        ToPort: 7001
+        IpProtocol: tcp
+        GroupId: !Ref NSSecurityGroup
+        SourceSecurityGroupId: !GetAtt ProxySecurityGroup.GroupId
+        Description: "Allowing Proxy to access the NS application on port 7001"
+
+  VisaCEInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.medium
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMidLayerPrivateSubnet
+      SecurityGroupIds:
+        - !Ref CEReportsSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Context
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  CEReportsSecurityGroup:
+    DependsOn: VPC
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Creating SG for CE and Reports to allow required port access"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Visa-CE-Reports-SG
+        - Key: App
+          Value: !Ref EnvironmentName
+
+  CEReportsSecurityGroupIngressFirst:
+      Type: AWS::EC2::SecurityGroupIngress
+      DependsOn: CEReportsSecurityGroup
+      Properties:
+        FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+        GroupId: !Ref CEReportsSecurityGroup
+        SourceSecurityGroupId: !GetAtt BastionSecurityGroup.GroupId
+        Description: "Allowing Bastion SG to access Port 22 for SSH"
+
+  CEReportsSecurityGroupIngressSecond:
+      Type: AWS::EC2::SecurityGroupIngress
+      DependsOn: CEReportsSecurityGroup
+      Properties:
+        FromPort: 8080
+        ToPort: 8080
+        IpProtocol: tcp
+        GroupId: !Ref CEReportsSecurityGroup
+        SourceSecurityGroupId: !GetAtt ProxySecurityGroup.GroupId
+        Description: "Allowing Proxy to access the CE application port on 8080"
+
+  CEReportsSecurityGroupIngressThird:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: CEReportsSecurityGroup
+    Properties:
+      FromPort: 3000
+      ToPort: 3000
+      IpProtocol: tcp
+      GroupId: !Ref CEReportsSecurityGroup
+      SourceSecurityGroupId: !GetAtt ProxySecurityGroup.GroupId
+      Description: "Allowing Proxy to access the Reports application port on 3000"
+
+  VisaReportsInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.small
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMidLayerPrivateSubnet
+      SecurityGroupIds:
+        - !Ref CEReportsSecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Reports
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  VisaMongo3PrimaryInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.medium
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMongoPrivateSubnetOne
+      SecurityGroupIds:
+        - !Ref Mongo3SecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Mongo3.4-Primary
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  VisaMongo3Replica1Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.medium
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMongoPrivateSubnetTwo
+      SecurityGroupIds:
+        - !Ref Mongo3SecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Mongo3.4-Replica1
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  VisaMongo3Replica2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.medium
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMongoPrivateSubnetThree
+      SecurityGroupIds:
+        - !Ref Mongo3SecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Mongo3.4-Replica 2
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  Mongo3SecurityGroup:
+    DependsOn: VPC
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Creating separate SG for Mongo 3.4 as it requires some individual port access"
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: Visa-Mongo3.4-SG
+        - Key: App
+          Value: !Ref EnvironmentName
+
+
+  Mongo3SecurityGroupIngressOne:
+    DependsOn: Mongo3SecurityGroup
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 27017
+      ToPort: 27017
+      GroupId: !Ref Mongo3SecurityGroup
+      SourceSecurityGroupId: !GetAtt Mongo3SecurityGroup.GroupId
+      Description: "Opening this port for inter communication between all clustered mongo nodes"
+
+  Mongo3SecurityGroupIngressTwo:
+    DependsOn: Mongo3SecurityGroup
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 27017
+      ToPort: 27017
+      GroupId: !Ref Mongo3SecurityGroup
+      SourceSecurityGroupId: !GetAtt CEReportsSecurityGroup.GroupId
+      Description: "Allowing CE SG to access Mongo3.4 server on Port 27017"
+
+  Mongo3SecurityGroupIngressThree:
+    DependsOn: Mongo3SecurityGroup
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 4222
+      ToPort: 4222
+      GroupId: !Ref Mongo3SecurityGroup
+      SourceSecurityGroupId: !GetAtt CEReportsSecurityGroup.GroupId
+      Description: "Allowing Context SG to access Nats server on Port 4222"
+
+  Mongo3SecurityGroupIngressFour:
+    DependsOn: Mongo3SecurityGroup
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 4222
+      ToPort: 4222
+      GroupId: !Ref Mongo3SecurityGroup
+      SourceSecurityGroupId: !GetAtt VCSecurityGroup.GroupId
+      Description: "Allowing Visa Connector SG to access Nats server on Port 4222"
+
+  Mongo3SecurityGroupIngressFive:
+    DependsOn: Mongo3SecurityGroup
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 6222
+      ToPort: 6222
+      GroupId: !Ref Mongo3SecurityGroup
+      SourceSecurityGroupId: !GetAtt Mongo3SecurityGroup.GroupId
+      Description: "Opening this port for inter communication between all clustered nats nodes"
+
+  Mongo3SecurityGroupIngressSix:
+    DependsOn: Mongo3SecurityGroup
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      FromPort: 22
+      ToPort: 22
+      GroupId: !Ref Mongo3SecurityGroup
+      SourceSecurityGroupId: !GetAtt BastionSecurityGroup.GroupId
+      Description: "Allowing Bastion SG to access Port 22 for SSH"
+
+  VisaMongo4PrimaryInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.medium
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+      KeyName: !Ref MyKeyName
+      SubnetId: !Ref VisaMongoPrivateSubnetOne
+      SecurityGroupIds:
+        - !Ref Mongo4SecurityGroup
+      Tags:
+        - Key: Name
+          Value: Visa-Mongo4.2-Primary
+        - Key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  VisaMongo4Replica1Instance:
+      Type: AWS::EC2::Instance
+      Properties:
+        InstanceType: t2.medium
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+        KeyName: !Ref MyKeyName
+        SubnetId: !Ref VisaMongoPrivateSubnetTwo
+        SecurityGroupIds:
+          - !Ref Mongo4SecurityGroup
+        Tags:
+          - Key: Name
+            Value: Visa-Mongo4.2-Replica1
+          - Key: App
+            Value: !Ref EnvironmentName
+        BlockDeviceMappings:
+          - DeviceName: /dev/sdm
+            Ebs:
+              VolumeType: io1
+              Iops: '200'
+              DeleteOnTermination: 'true'
+              VolumeSize: '30'
+
+  VisaMongo4Replica2Instance:
+      Type: AWS::EC2::Instance
+      Properties:
+        InstanceType: t2.medium
+        ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", HVM64]
+        KeyName: !Ref MyKeyName
+        SubnetId: !Ref VisaMongoPrivateSubnetThree
+        SecurityGroupIds:
+          - !Ref Mongo4SecurityGroup
+        Tags:
+          - Key: Name
+            Value: Visa-Mongo4.2-Replica2
+          - Key: App
+            Value: !Ref EnvironmentName
+        BlockDeviceMappings:
+          - DeviceName: /dev/sdm
+            Ebs:
+              VolumeType: io1
+              Iops: '200'
+              DeleteOnTermination: 'true'
+              VolumeSize: '30'
+
+  Mongo4SecurityGroup:
+      DependsOn: VPC
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: "Creating separate SG for Mongo 3.4 as it requires some individual port access"
+        VpcId: !Ref VPC
+        Tags:
+          - Key: Name
+            Value: Visa-Mongo4.2-SG
+          - Key: App
+            Value: !Ref EnvironmentName
+
+  Mongo4SecurityGroupIngressOne:
+      DependsOn: Mongo4SecurityGroup
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        IpProtocol: tcp
+        FromPort: 27017
+        ToPort: 27017
+        GroupId: !Ref Mongo4SecurityGroup
+        SourceSecurityGroupId: !GetAtt Mongo4SecurityGroup.GroupId
+        Description: "Opening this port for inter communication between all clustered mongo nodes"
+
+  Mongo4SecurityGroupIngressTwo:
+      DependsOn: Mongo4SecurityGroup
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        IpProtocol: tcp
+        FromPort: 27017
+        ToPort: 27017
+        GroupId: !Ref Mongo4SecurityGroup
+        SourceSecurityGroupId: !GetAtt NSSecurityGroup.GroupId
+        Description: "Allowing Name Screening SG to access Mongo4.2 on Port 27017"
+
+  Mongo4SecurityGroupIngressFour:
+      DependsOn: Mongo4SecurityGroup
+      Type: AWS::EC2::SecurityGroupIngress
+      Properties:
+        IpProtocol: tcp
+        FromPort: 27017
+        ToPort: 27017
+        GroupId: !Ref Mongo4SecurityGroup
+        SourceSecurityGroupId: !GetAtt VCSecurityGroup.GroupId
+        Description: "Allowing Visa Connector SG to access Mongo4.2 on Port 27017"
+
+Outputs:
+  VPC:
+    Description: Using the VPC ID for future Context deployments
+    Value: !Ref VPC
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-VPCID"
+
+  MidLayerSubnetID:
+    Description: Using the Subnet ID for future deployments
+    Value: !Ref VisaMidLayerPrivateSubnet
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SubnetID-MidLayer"
+
+  Mongo3SubnetOneID:
+    Description: Using the Subnet ID for future deployments
+    Value: !Ref VisaMongoPrivateSubnetOne
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SubnetID-Mongo-Primary"
+
+  Mongo3SubnetTwoID:
+    Description: Using the Subnet ID for future deployments
+    Value: !Ref VisaMongoPrivateSubnetTwo
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SubnetID-Rep1"
+
+  Mongo3SubnetThreeID:
+    Description: Using the Subnet ID for future deployments
+    Value: !Ref VisaMongoPrivateSubnetThree
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SubnetID-Rep2"
+
+  FileSystemID:
+    Description: FileSystem ID for Future Reference
+    Value:
+      Ref: FileSystem
+
+  ContextSGID:
+    Description: Using the same Context SG for future ec2 context instance deployments.
+    Value: !GetAtt CEReportsSecurityGroup.GroupId
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SecurityGroupID-CE"
+
+  Mongo3SGID:
+    Description: Using the same Mongo 3.4 SG for future ec2 mongo 3.4 instance deployments.
+    Value: !GetAtt Mongo3SecurityGroup.GroupId
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SecurityGroupID-Mongo3.4"
+
+  Mongo4SGID:
+    Description: Using the same Mongo 4.2 SG for future ec2 mongo 4.2 instance deployments.
+    Value: !GetAtt Mongo4SecurityGroup.GroupId
+    Export:
+      Name:
+        Fn::Sub: "${AWS::StackName}-SecurityGroupID-Mongo4.2"

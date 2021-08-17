@@ -1,0 +1,150 @@
+
+Description: "Launching Instances for Application deployment"
+
+Parameters:
+  VPCStackName:
+    Description: "Using the created VPC stack"
+    Type: String
+    Default: VPCStack
+  KeyName:
+    Description: "Choose the Key for your use"
+    Type: AWS::EC2::KeyPair::KeyName
+  ContextName:
+    Description: Please provide the name which you want to use for context instance
+    Type: String
+  MongoName:
+    Description: Please provide the name which you want to use for mongo instance
+    Type: String
+  EnvironmentName:
+    Description: Provide the Application name
+    Type: String
+    Default: Visa-Pre-Prod
+
+Resources:
+  ContextInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageID:
+      KeyName:
+        Ref: "KeyName"
+      NetworkInterfaces:
+        - SubnetID:
+             Fn::ImportValue:
+                Fn::Sub: "${VPCStackName}-SubnetID-MidLayer"
+          AssociatePublicIpAddress: "true"
+          DeleteOnTermination: "true"
+          GroupSet:
+            Fn::ImportValue:
+              Fn::Sub: "${VPCStackName}-SecurityGroupID-CE"
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  Mongo3InstanceOne:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro
+      ImageID:
+      KeyName:
+        Ref: "KeyName"
+      NetworkInterfaces:
+        - SubnetID:
+            Fn::ImportValue:
+              Fn::Sub: "${VPCStackName}-SubnetID-Mongo-Primary"
+          AssociatePublicIpAddress: "true"
+          DeleteOnTermination: "true"
+          GroupSet:
+            Fn::ImportValue:
+              Fn::Sub: "${VPCStackName}-SecurityGroupID-Mongo3.4"
+      Tags:
+        - Key: Name
+          Value: !Ref ContextName
+        - key: App
+          Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+  Mongo3InstanceTwo:
+      Type: AWS::EC2::Instance
+      Properties:
+        InstanceType: t2.micro
+        ImageID:
+        KeyName:
+          Ref: "KeyName"
+        NetworkInterfaces:
+          - SubnetID:
+              Fn::ImportValue:
+                Fn::Sub: "${VPCStackName}-SubnetID-Rep1"
+            AssociatePublicIpAddress: "true"
+            DeleteOnTermination: "true"
+            GroupSet:
+              Fn::ImportValue:
+                Fn::Sub: "${VPCStackName}-SecurityGroupID-Mongo3.4"
+        Tags:
+          - Key: Name
+            Value: !Ref MongoName
+          - key: App
+            Value: !Ref EnvironmentName
+        BlockDeviceMappings:
+          - DeviceName: /dev/sdm
+            Ebs:
+              VolumeType: io1
+              Iops: '200'
+              DeleteOnTermination: 'true'
+              VolumeSize: '30'
+
+  Mongo3InstanceThree:
+      Type: AWS::EC2::Instance
+      Properties:
+        InstanceType: t2.micro
+        ImageID:
+        KeyName:
+          Ref: "KeyName"
+        NetworkInterfaces:
+          - SubnetID:
+              Fn::ImportValue:
+                Fn::Sub: "${VPCStackName}-SubnetID-Rep2"
+            AssociatePublicIpAddress: "true"
+            DeleteOnTermination: "true"
+            GroupSet:
+              Fn::ImportValue:
+                Fn::Sub: "${VPCStackName}-SecurityGroupID-Mongo3.4"
+        Tags:
+          - Key: Name
+            Value: !Ref MongoName
+          - key: App
+            Value: !Ref EnvironmentName
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdm
+          Ebs:
+            VolumeType: io1
+            Iops: '200'
+            DeleteOnTermination: 'true'
+            VolumeSize: '30'
+
+Output:
+  ContextIp:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt [ContextInstance, PublicIp]
+
+  MongoPrimaryIp:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt [Mongo3InstanceOne, PublicIp]
+
+  MongoRep1Ip:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt [Mongo3InstanceTwo, PublicIp]
+
+  MongoRep2Ip:
+    Description: Public IP address of the newly created EC2 instance
+    Value: !GetAtt [Mongo3InstanceThree, PublicIp]

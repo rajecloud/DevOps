@@ -1,0 +1,191 @@
+def getCommitTag()
+{
+    def tag = sh script: 'git rev-parse HEAD', returnStdout: true
+    return tag
+}
+
+
+pipeline {
+
+    agent any
+
+    options {
+
+		buildDiscarder(logRotator(numToKeepStr: '10'))
+		disableConcurrentBuilds()
+	}
+
+    tools {
+
+        gradle 'Local_Gradle'
+        nodejs 'Local_NodeJS_v10.14.1'
+    }
+
+    environment{
+
+        commitTag = getCommitTag()
+        //tag = "ce-review:${BUILD_NUMBER}"
+	    registry = "localhost:5000"
+    }
+
+    /*parameters {
+
+        booleanParam (name: 'executeTest', defaultValue: true, description: 'Select the box to execute the unit test with build')
+        string(name: 'current_status', defaultValue: 'closed', description: 'Check the box if pull request is closed' )
+		booleanParam(name: 'merged', defaultValue: true, description: 'Uncheck the box if merge not happened')
+
+    }*/
+
+    stages{
+
+        stage('Git Checkout') {
+            /*when {
+                  	expression { return params.current_status == "closed" && params.merged == true }
+              	}*/
+
+            steps {
+                step([$class: 'WsCleanup'])
+
+                checkout scm
+
+                echo "Code has been checked out from ${Local_Branch} branch"
+
+                echo "Deleting logback.xml file to get applications logs on console"
+
+                sh 'rm -rf ce-review/src/main/resources/logback.xml'
+            }
+        }
+
+        stage('Installing the Dependencies and Building the UI package'){
+
+            /*when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}*/
+
+            steps {
+
+                sh '''
+                echo 'Changing the UI directory to perform Angular build first'
+                cd ce-review/ui
+
+                echo 'Installing all the required dependencies and creating node_modules package'
+                npm install
+
+                echo 'Build process started with installed package'
+                ng build --prod
+
+                echo 'Angular Build processed and completed successfully..!'
+
+                '''
+            }
+        }
+
+        stage('Build using Gradle'){
+
+                /*when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}*/
+
+                steps{
+
+		              sh '''
+                      cd ce-review
+                      echo 'Directory changed back to ce-review for gradle build process'
+
+                      gradle bootJar -x test
+                      echo 'Gradle Build processed and completed successfully..!'
+                      '''
+                }
+
+        }
+
+        stage('Archiving Build Output'){
+
+                /*when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}*/
+
+                steps{
+
+                    archiveArtifacts artifacts: '**/*.jar', fingerprint: true
+
+                    echo 'Build Process is done successfully and jar file has been archived from build directory..!'
+
+                    //sh "mkdir -p WarFile_Output/${env.JOB_NAME}/${env.BUILD_NUMBER}"
+                    //sh "ln -s /var/lib/jenkins/workspace/Multi_Pipe/ce-review/build/libs/* WarFile_Output/${env.JOB_NAME}/${env.BUILD_NUMBER}/"
+
+
+
+                }
+        }
+
+        stage('Creating Docker Image'){
+
+                /*when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}*/
+
+			    steps{
+
+                        echo "Build started to create Docker Image"
+			            sh "docker build . -f /home/Raj/ce-review/Dockerfile -t $registry/$commitTag --no-cache "
+
+			            echo "Docker Image created and ready to push"
+
+			            echo "Confirming the created image"
+
+			            sh 'docker images'
+                }
+		}
+
+		stage('Pushing the created Image into DockerHub'){
+
+		        /*when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}*/
+
+			    steps{
+                    echo "Pushing it to the DockerHub for further deployment"
+
+			        //withDockerRegistry([ credentialsId: "DockerHub", url: ""]){
+
+			            sh "docker push $registry/$commitTag"
+
+			            echo "Image pushed into the docker private $registry registry"
+
+			        //}
+			    }
+		}
+
+		stage('Cleaning the Images'){
+
+		        /*when {
+
+                  		expression { return params.current_status == "closed" && params.merged == true }
+              		}*/
+
+			    steps{
+
+			        echo "Removing the created Image locally to free up storage space"
+
+			        sh "docker rmi $registry/$commitTag"
+
+			        echo 'Images deleted locally'
+			    }
+		}
+    }
+    post{
+
+        success{
+
+            mail to:"ekarthi@bankcbw.org", subject:"BUILD SUCCESS and Docker Image Pushed", body: "Job ${env.JOB_NAME} and ${env.BUILD_NUMBER} processed successfully"
+
+        }
+
+    }
+}

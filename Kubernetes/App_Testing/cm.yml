@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ce-review-config
+data:
+  cereview.config.location: |-
+    " server.port=7070
+      server.servlet.context-path=/CEREVIEW
+      spring.data.mongodb.uri=mongodb://mongo42-0.mongo42:27017/cereview
+
+      logging.level.root=INFO
+      logging.level.org.springframework=INFO
+      logging.level.org.org.hibernate=INFO
+      logging.level.com.ce.review=INFO
+
+      nats.server.urls=nats://nats-0.nats:4222
+      nats.clusterId=ystack
+      nats.client.name=ledger-cereview-1"
+
