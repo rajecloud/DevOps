@@ -1,0 +1,196 @@
+# This sample sets up an Elasticsearch cluster with 3 nodes.
+elasticsearchYaml: |-
+  apiVersion: elasticsearch.k8s.elastic.co/v1
+  kind: Elasticsearch
+  metadata:
+    name: elasticsearch-config
+  spec:
+    http:
+      tls:
+        selfSignedCertificate:
+          disabled: true
+    # Following update strategy can be defined while updating the es cluster please go through Readme
+    #updateStrategy:
+      #changeBudget:
+        #maxSurge: 3
+        #maxUnavailable: 1
+    # You can specify which version to use currently supported versions 6.8.8,7.4.0,7.6.0 images are 
+    # available in gcr just change the appropriate tag
+    version: 7.4.0
+    image: gcr.io/PROJECT_ENV/logstash-operator/elasticsearch:7.4.0
+    # Following secure settings is to add gcs credentials obtained from service account for  backup purpose
+    secureSettings:
+     - secretName: gcs-credentials
+    # Following auth filed is for configuring filerealm user and roles using secrets
+    auth:
+      fileRealm:
+      - secretName: user-management-filerealm-secret
+      roles:
+      - secretName: custom-role-secret
+    nodeSets:
+    - name: master
+      count: 1
+    # A default PDB is enabled by default- it allows one Elasticsearch Pod to be taken down as long as the cluster has a green health.
+    # To tweak PDB please uncomment following lines and go to readme for more informatio
+    #podDisruptionBudget:
+    #spec:
+      #minAvailable: 2
+      #selector:
+        #matchLabels:
+          #elasticsearch.k8s.elastic.co/cluster-name: elasticsearch-config
+      config:
+        # most Elasticsearch configuration parameters are possible to set, e.g: node.attr.attr_name: attr_value
+        node.master: true
+        node.data: false
+        node.ingest: false
+        node.ml: true
+        # Uncomment this parameter you can specify which topology you will like to choose , hot-warm
+        #node.attr.data: hot
+        # this allows ES to run on nodes even if their vm.max_map_count has not been increased, at a performance cost
+        node.store.allow_mmap: false
+        # Uncomment these two parameters if you wish to specify which zone es node should run in
+        #node.attr.zone: europe-west3-a
+        #cluster.routing.allocation.awareness.attributes: zone
+        # for release 7.4.0 and 7.6.0 uncomment following line for filerealm config
+        xpack.security.authc.realms.file.file1.order: 0
+        # for release 6.8.8 uncomment following line for filerealm config
+        #xpack.security.authc.realms.file1.type: file
+        #xpack.security.authc.realms.file1.order: 0
+        http.compression: true
+        http.compression_level: 9
+      podTemplate:
+        metadata:
+          labels:
+            # additional labels for pods
+            master: node
+        spec:
+          # This init container can be used to install any plugin in elasticsearch
+          initContainers:
+          - name: install-plugins
+            command:
+            - sh
+            - -c
+            - |
+              bin/elasticsearch-plugin install --batch repository-gcs
+          # Enable affinity rules in case you need each es node to have 1 to 1 mapping with the
+          # kubernetes cluster ndoes
+          #affinity:
+            #nodeAffinity:
+              #requiredDuringSchedulingIgnoredDuringExecution:
+                #nodeSelectorTerms:
+                #- matchExpressions:
+                  #- key: kubernetes.io/hostname
+                    #operator: In
+                    #values:
+                    #- gke-gtso-enter-gke-g-qa-testing-node--f8f6add2-lb61
+          containers:
+          - name: elasticsearch
+            # specify resource limits and requests
+            resources:
+              limits:
+                memory: 3Gi
+                cpu: 1
+            env:
+            - name: ES_JAVA_OPTS
+              value: "-Xms2g -Xmx2g"   
+      volumeClaimTemplates:
+      - metadata:
+          name: elasticsearch-data
+        spec:
+          accessModes:
+          - ReadWriteOnce
+          resources:
+            requests:
+              storage: 200Gi
+          storageClassName: standard    
+    - name: data-ingest
+      count: 1
+      config:
+        node.master: false
+        node.data: true
+        node.ingest: true
+        node.store.allow_mmap: false
+        # for release 7.4.0 and 7.6.0
+        xpack.security.authc.realms.file.file1.order: 0
+        # for release 6.8.8
+        #xpack.security.authc.realms.file1.type: file
+        #xpack.security.authc.realms.file1.order: 0 
+        http.compression: true
+        http.compression_level: 9
+      podTemplate:
+        metadata:
+          labels:
+            # additional labels for pods
+            data: node
+        spec:
+          initContainers:
+          - name: install-plugins
+            command:
+            - sh
+            - -c
+            - |
+              bin/elasticsearch-plugin install --batch repository-gcs
+          # this changes the kernel setting on the node to allow ES to use mmap
+          # if you uncomment this init container you will likely also want to remove the
+          # "node.store.allow_mmap: false" setting above
+          # initContainers:
+          # - name: sysctl
+          #   securityContext:
+          #     privileged: true
+          #   command: ['sh', '-c', 'sysctl -w vm.max_map_count=262144'
+          # uncomment the line below if you are using a service mesh such as linkerd2 that uses service account tokens for pod identification.
+          # automountServiceAccountToken: true
+          #affinity:
+            #nodeAffinity:
+              #requiredDuringSchedulingIgnoredDuringExecution:
+                #nodeSelectorTerms:
+                #- matchExpressions:
+                  #- key: kubernetes.io/hostname
+                    #operator: In
+                    #values:
+                    #- gke-gtso-enter-gke-g-qa-testing-node--f8f6add2-lb61
+          containers:
+          - name: elasticsearch
+            # specify resource limits and requests
+            resources:
+              limits:
+                memory: 3Gi
+                cpu: 1
+            env:
+            - name: ES_JAVA_OPTS
+              value: "-Xms2g -Xmx2g"
+              #  count: 3
+    #   # request 2Gi of persistent data storage for pods in this topology element
+    #   volumeClaimTemplates:
+    #   - metadata:
+    #       name: elasticsearch-data
+    #     spec:
+    #       accessModes:
+    #       - ReadWriteOnce
+    #       resources:
+    #         requests:
+    #           storage: 2Gi
+    #       storageClassName: standard
+    # # inject secure settings into Elasticsearch nodes from k8s secrets references
+    # secureSettings:
+    # - secretName: ref-to-secret
+    # - secretName: another-ref-to-secret
+    #   # expose only a subset of the secret keys (optional)
+    #   entries:
+    #   - key: value1
+    #     path: newkey # project a key to a specific path (optional)
+    # http:
+    #   service:
+    #     spec:
+    #       # expose this cluster Service with a LoadBalancer
+    #       type: LoadBalancer
+    #   tls:
+    #     selfSignedCertificate:
+    #       # add a list of SANs into the self-signed HTTP certificate
+    #       subjectAltNames:
+    #       - ip: 192.168.1.2
+    #       - ip: 192.168.1.3
+    #       - dns: elasticsearch-sample.example.com
+    #     certificate:
+    #       # provide your own certificate
+    #       secretName: my-cert

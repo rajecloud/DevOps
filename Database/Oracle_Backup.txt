@@ -1,0 +1,27 @@
+﻿
+Oracle Backup
+
+Three type of Backup method availale on RMAN
+
+Full Backup --> Takes the full db backup
+Incremental Backup --> takes the redo log backups and copy the same with Master copy
+Block Size --> Takes the each storage block backup per given size
+
+Before taking a Backup, make sure to keep DB as archivelog mode which is highly recommendable.
+
+Moving to Cloud 
+
+	Oracle required its Oracle Secure Backup (OSB) licensed based software to backup the data into any cloud storage (mostly AWS S3)
+
+
+Oracle RMAN doc --> https://docs.oracle.com/cd/E11882_01/backup.112/e10642/rcmquick.htm#BRADV89346
+
+Best Practice -->
+https://dinfratechsource.com/2018/11/10/how-to-configure-oracle-rman-backup-in-oracle-12c/
+
+Oracle RMAN to OSB to AWS S3 -->
+https://docs.rackspace.com/blog/backup-oracle-with-amazon-simple-storage-service/
+
+https://aws-quickstart.s3.amazonaws.com/quickstart-oracle-database/doc/oracle-database-on-the-aws-cloud.pdf
+
+https://www.oracle.com/technetwork/articles/oem/311392-132350.pdf

@@ -1,0 +1,33 @@
+## Documentation for configuring a MySQL Cluster can be found at https://www.percona.com/doc/kubernetes-operator-for-pxc/index.html#configuration
+## The (yaml) configuration files can be found in the deploy folder
+
+nameOverride: ""
+fullnameOverride: ""
+
+kubernetesNamespace: "elastic-test-3"
+
+# Image used for the job that will apply the operator yaml files for the relevant command (see below)
+image:
+  repository: gcr.io/broadcom-270220/elk-final
+  tag: 1.0.3
+  pullPolicy: IfNotPresent
+
+podName: "elastic-operator-0"
+
+# Command to run. Applies yaml from the operator folder:
+
+## deploy-elk-cluster -> use the following command to deploy the ELK stack
+## delete-elk-cluster -> use the following command to delete the ELK stack
+## provision-kibana -> use the following command to provision kibana, ELK stack has to be deployed first for this operation to work
+## deprovision-kibana -> use the following command to de-provision kibana , ELK stack has to be deployed first for this operation to work
+## provision-elasticsearch -> use the following command to provision elasticsearch , ELK stack has to be deployed first for this operation to work
+## deprovision-elasticsearch -> use the following command to deprovision elasticsearch , ELK stack has to be deployed first for this operation to work
+## provision-logstash -> use the following command to provision logstash , ELK stack has to be deployed first for this operation to work
+## deprovision-logstash -> use the following command to de-provision logstash , ELK stack has to be deployed first for this operation to work
+
+# Ensure the yaml in the operator folder contains what you want to apply before triggering the CD Pipeline
+
+command: delete-elk-cluster
+
+
+clusterName: cluster1

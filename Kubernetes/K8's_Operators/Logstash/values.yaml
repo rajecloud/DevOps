@@ -1,0 +1,58 @@
+## Documentation for configuring a MySQL Cluster can be found at https://www.percona.com/doc/kubernetes-operator-for-pxc/index.html#configuration
+## The (yaml) configuration files can be found in the deploy folder
+
+nameOverride: ""
+fullnameOverride: ""
+
+#kubernetesNamespace: "elastic-stack-demo"
+
+# If a GKE private cluster define the internal API IP. Obtain it by logging in to your GCP project using gcloud and then typing:
+# gcloud container clusters describe <gke-cluster-name> --zone=<gke-cluster-zone> | grep privateEndpoint | awk '{print $NF}'
+# If not a GKE private cluster, comment out this entry so that the server IP from kubeconfig is used
+kubernetesInternalApiServer: 10.0.0.2
+
+ 
+# Image used for the job that will apply the operator yaml files for the relevant command (see below)
+image:
+  repository: gcr.io/saaspoc-gtso-enterprise-gke/gkegtsoent/logstash-operator/elastic-stack-operator
+  tag: 1.1.4
+  pullPolicy: IfNotPresent
+  
+podName: "elastic-operator-0"
+podNameLogstash: "logstash-operator"
+ 
+# Command to run. Applies yaml from the operator folder:
+
+## deploy-elk-cluster -> use the following command to deploy the ELK stack
+## delete-elk-cluster -> use the following command to delete the ELK stack
+## provision-kibana -> use the following command to provision kibana, ELK stack has to be deployed first for this operation to work
+## deprovision-kibana -> use the following command to de-provision kibana , ELK stack has to be deployed first for this operation to work
+## provision-elasticsearch -> use the following command to provision elasticsearch , ELK stack has to be deployed first for this operation to work
+## deprovision-elasticsearch -> use the following command to deprovision elasticsearch , ELK stack has to be deployed first for this operation to work
+## provision-logstash -> use the following command to provision logstash , ELK stack has to be deployed first for this operation to work
+## deprovision-logstash -> use the following command to de-provision logstash , ELK stack has to be deployed first for this operation to work
+## create-custom-user-role -> Use the following command after the cluster has been deployed and follow readme for the prerequisites required to run this command
+## enable-backup-cron-job -> Use the following command after the cluster has been deployed and follow readme for the prerequisites required to run this command
+## deploy-curator: Use the following command after the cluster has been deployed and follow readme for the prerequisites required to run this command
+## delete-curator: Use the following command to delete curator cronjob from your namespace
+## smoke-test: use this command to trigger a sanity check for the elasticsearch cluster, please change the cluseterName with the name of ES cluster
+    
+# Ensure the yaml in the operator folder contains what you want to apply before triggering the CD Pipeline
+
+command: delete-elk-cluster
+
+# change the below value to true if you want to run a sanity check against ES cluster
+esSmokeTest: false
+
+# change standaloneLogstash: true with `provision-logstash` command in order to deploy or delete standalone logstash deployment
+standaloneLogstash: false
+
+# Mention the elasticsearch clustername for ensure a sanity check with the help of `smoke-test` command
+clusterName: elasticsearch-config
+ 
+# change 'deploy-aiops-agent' 'true' if you want to to deploy the operators aiops metrics agent.
+deployAiopsAgent: true
+
+#change 'deployCuratorJob' 'true' if you want to deploy curator for ILM, Please change the required actions and filters in operators folder(curator-config.yaml)
+deployCuratorJob: true
+

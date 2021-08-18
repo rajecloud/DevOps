@@ -1,0 +1,5 @@
+repo: https://repo/artifactory/helm-release-candidate-local
+chart: elasticsearch-operator/elasticsearch-operator-1.1.6.tgz
+values: ./values.yaml
+command: install 
+commandOptions: --wait --debug

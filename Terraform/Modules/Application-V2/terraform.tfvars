@@ -1,0 +1,11 @@
+project_id      = "us-gcp-ame-con-728-sbx-1"
+vpc_name        = "test-vpc1"
+ip_range        = "10.0.0.0/16"
+region          = "us-east4"
+db_name         = "test_db"
+db_ins_name     = "test-db-instance"
+db_version      = "MYSQL_5_7"
+db_mac_type     = "db-f1-micro"
+db_username     = "raj"
+db_pwd          = "admin123"
+db_size         = 10

@@ -1,0 +1,51 @@
+curatorCronjob: |- 
+  apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    name: curator
+    labels:
+      app: curator
+  spec:
+    schedule: "*/1 * * * *"
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 3
+    concurrencyPolicy: Forbid
+    startingDeadlineSeconds: 120
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            containers:
+            - image: gcr.io/PROJECT_ENV/elastic-operator/curator:5.8.1
+              name: curator
+              command: ["/curator/curator"]
+              args: ["--config", "/etc/config/config.yml", "/etc/config/action_file.yml"]
+              env:
+              - name: ELASTIC_USER
+                value: elastic
+              - name: SECRET_ES_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    key: elastic
+                    name: elasticsearch-config-es-elastic-user
+              - name: ELASTIC_CREDS
+                value: $(ELASTIC_USER):$(SECRET_ES_PASSWORD)
+              volumeMounts:
+              - name: config
+                mountPath: /etc/config
+              - mountPath: /etc/certificate/secret
+                name: login
+              - mountPath: /etc/certificate/ca.crt
+                name: certs
+                subPath: ca.crt
+            volumes:
+            - name: config
+              configMap:
+                name: curator-config
+            - name: login
+              secret:
+                secretName: elasticsearch-config-es-elastic-user
+            - name: certs
+              secret:
+                secretName: elasticsearch-config-es-http-certs-public
+            restartPolicy: OnFailure

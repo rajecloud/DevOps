@@ -1,0 +1,25 @@
+esBackupCronjob: |-  
+  apiVersion: batch/v1beta1
+  kind: CronJob
+  metadata:
+    name: es-backup-cronjob
+  spec:
+    schedule: "*/1 * * * *"
+    concurrencyPolicy: Forbid
+    jobTemplate:
+      spec:
+        template:
+          spec:
+            containers:
+            - name: es-backup
+              image: gcr.io/PROJECT_ENV/elastic-operator/backup-cron-centos:8 
+              volumeMounts:
+                - name: es-basic-auth
+                  mountPath: /mnt/elastic/es-basic-auth
+              command: ["/bin/bash", "-c"]
+              args: ["curl -s -i -k -u \"elastic:$(</mnt/elastic/es-basic-auth/elastic)\" -X PUT \"https://elasticsearch-config-es-http:9200/_snapshot/elastic-search-backup-bucket?pretty\" -H 'Content-Type: application/json' -d' {\"type\": \"gcs\", \"settings\": { \"bucket\": \"elastic-search-backup-bucket\",  \"client\": \"default\" } }' && curl -s -i -k -u \"elastic:$(</mnt/elastic/es-basic-auth/elastic)\" -X PUT \"https://elasticsearch-config-es-http:9200/_snapshot/elastic-search-backup-bucket/snapshot-$(date +\"%Y-%m-%d-%H-%M\")\""]
+            restartPolicy: OnFailure
+            volumes:
+            - name: es-basic-auth
+              secret:
+                secretName: elasticsearch-config-es-elastic-user

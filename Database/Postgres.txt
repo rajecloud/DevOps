@@ -1,0 +1,62 @@
+﻿
+Install Postgresql 10 on Ubuntu
+
+Commands:
+
+# echo 'deb http://apt.postgresql.org/pub/repos/apt/ xenial-pgdg main' >> /etc/apt/sources.list.d/pgdg.list
+# wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+# sudo apt-get update
+# sudo apt-get install postgresql-10
+
+Install Postgresql 11 on Ubuntu
+
+Commands:
+
+# echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main 11" | sudo tee /etc/apt/sources.list.d/pgsql.list
+# wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+# sudo apt-get update
+# sudo apt-get install postgresql-10
+
+Once the upgrade is done, follow the below commands to use the upgraded version database. By default, it will backup all the date from older version and store it under new version as well, so there is no data loss but still we can take backup.
+
+# sudo pg_dropcluster 11 main –stop
+# sudo pg_upgradecluster 10 main
+# sudo pg_dropcluster 10 main
+
+Backing up data
+
+If you want to take backup for specific database, follow the below command
+
+pg_dump -h 127.0.0.1 (here its localhost, change if want to take remote server backup) -U postgres (default user, if db created with another user then provide that username) <db-name> -F t or p or d > /path/to/your/file/dump_name.tar
+
+exa : pg_dump -U postgres -h 127.0.0.1 demo -F p > backup.sql
+
+If you want to take all the backup from all db, then simple use the below command.
+
+pg_dumpall -U postgres -h 127.0.0.1 > /path/to/your/file/dump_name.tar
+
+exa: pg_dumpall -U postgres -h 127.0.0.1 > backup.sql
+
+
+Restoring Data
+
+If you take the backup as a simple text format, then use below command.
+
+psql -U postgres -d <db-name> < /path/to/your/file/dump_name.tar
+
+If the backup data is stored as a zip or tar file, then use below command
+
+pg_restore -d db_name /path/to/your/file/dump_name.tar -c -U postgres
+
+
+Refer the below URL’s contents to get more help
+
+https://tecadmin.net/backup-and-restore-database-in-postgresql/
+
+https://kb.objectrocket.com/postgresql/backing-up-all-databases-in-postgresql-738
+
+https://www.postgresql.org/docs/11/pgupgrade.html
+
+https://www.postgresql.org/docs/11/upgrading.html
+
+https://gorails.com/guides/upgrading-postgresql-version-on-ubuntu-server

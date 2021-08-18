@@ -1,0 +1,67 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "elasticsearch-operator.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "elasticsearch-operator.name" . }}
+    helm.sh/chart: {{ include "elasticsearch-operator.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+  annotations:
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      name: {{ include "elasticsearch-operator.fullname" . }}
+      labels:
+        app.kubernetes.io/name: {{ include "elasticsearch-operator.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: elasticsearch-operator-yaml
+              mountPath: /operator
+            - name: kubeconfig
+              mountPath: /kubeconfig
+          env:
+            - name: RUN_TIME
+              value: {{ .Values.runTime | quote }}
+            - name: KUBERNETES_INTERNAL_API_SERVER
+              value: {{ .Values.kubernetesInternalApiServer | quote }}
+            - name: KUBERNETES_NAMESPACE
+              value: {{ .Values.kubernetesNamespace | quote }}
+            - name: BASE_KUBERNETES_NAMESPACE
+              value: {{ .Values.baseKubernetesNamespace | quote }}
+            - name: BASE_KUBERNETES_NAMESPACE_SERVICE_ACCOUNT
+              value: {{ .Values.baseKubernetesNamespaceServiceAccount | quote }}
+            - name: BASE_KUBERNETES_NAMESPACE_SERVICE_ACCOUNT_TOKEN
+              value: {{ .Values.baseKubernetesNamespaceServiceAccountToken | default "" | quote }}
+            - name: OPERATOR_COMMAND
+              value: {{ .Values.command | default "deploy" | quote }}
+            - name: OPERATOR_IMAGES
+              value: {{ .Values.image.repository | quote }}
+            - name: OPERATOR_POD
+              value: {{ .Values.podName | default "elasticsearch-operator-0" | quote }}
+            - name: ELASTICSEARCH_OPERATOR_VERSION
+              value: {{ .Values.elasticsearchOperatorVersion | default "1.0.0" | quote }}
+            - name: CLUSTER_NAME
+              value: {{ .Values.clusterName | quote }}
+            - name: AIOPS_AGENT_DEPLOY
+              value: {{ .Values.deployAiopsAgent | quote }}
+            - name: CURATOR_JOB_DEPLOY
+              value: {{ .Values.deployCuratorJob | quote }}
+            - name: SMOKE_TEST
+              value: {{ .Values.esSmokeTest | quote }}
+            - name: GCR_REPO
+              value: {{ .Values.image.repository | quote }}  
+      volumes:
+        - name: elasticsearch-operator-yaml
+          configMap:
+            name: {{ include "elasticsearch-operator.fullname" . }}
+        - name: kubeconfig
+          configMap:
+            name: {{ include "elasticsearch-operator.fullname" . }}-kubeconfig
+      restartPolicy: Never

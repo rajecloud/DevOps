@@ -1,0 +1,45 @@
+kibanaCrYaml: |-
+  apiVersion: kibana.k8s.elastic.co/v1
+  kind: Kibana
+  metadata:
+    name: kibana-config
+  spec:
+    version: 7.4.0
+    image: gcr.io/PROJECT_ENV/logstash-operator/kibana:7.4.0
+    count: 1
+    elasticsearchRef:
+      name: "elasticsearch-config"
+    http:
+     service:
+     #  metadata:
+     #     annotations:
+     #      external-dns.alpha.kubernetes.io/hostname: "kibana-config-kb-http.es-test.saasdev.gke1.net"
+     #      #cloud.google.com/load-balancer-type: "Internal"
+     #      #networking.gke.io/internal-load-balancer-allow-global-access: "true"
+           #cloud.google.com/neg: '{"ingress": true}'
+       spec:
+         type: LoadBalancer
+     tls:
+        certificate:
+          secretName: custom-cert
+    # this shows how to customize the Kibana pods
+    # with labels and resource limits
+    podTemplate:
+      metadata:
+        labels:
+          kibana: node
+      spec:
+        containers:
+        - name: kibana
+          resources:
+            limits:
+              memory: 1Gi
+              cpu: 1
+          readinessProbe:
+            httpGet:
+              scheme: HTTP
+              path: "/login"
+              port: 5601
+
+ 
+ 

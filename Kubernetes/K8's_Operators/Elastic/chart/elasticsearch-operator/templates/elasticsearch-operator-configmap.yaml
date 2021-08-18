@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "elasticsearch-operator.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "elasticsearch-operator.name" . }}
+    helm.sh/chart: {{ include "elasticsearch-operator.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  elasticsearch_cr.yaml: {{ toYaml .Values.elasticsearchYaml | indent 2 }}
+  rbac.yaml: {{ toYaml .Values.rbacYaml | indent 2 }}
+  elastic-webhook-server.yaml: {{ toYaml .Values.elasticWebhookYaml | indent 2 }}
+  operator.yaml: {{ toYaml .Values.operatorYaml | indent 2 }}
+  kibana_cr.yaml: {{ toYaml .Values.kibanaCrYaml | indent 2 }}
+  custom-roles-secret.yaml: {{ toYaml .Values.customRoleSecret | indent 2 }}
+  user-management-file-realm-secret.yaml: {{ toYaml .Values.userManagementFilerealmSecret | indent 2 }}
+  es-backup-cronjob.yaml: {{ toYaml .Values.esBackupCronjob | indent 2 }}
+  aiops.yaml: {{ toYaml .Values.aiopsYaml | indent 2 }}
+  curator-config.yaml: {{ toYaml .Values.curatorConfig | indent 2 }}
+  curator-cronjob.yaml: {{ toYaml .Values.curatorCronjob | indent 2 }}

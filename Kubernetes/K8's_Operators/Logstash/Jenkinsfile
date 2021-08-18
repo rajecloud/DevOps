@@ -1,0 +1,4 @@
+@Library('broadcom-saas-cd-pipeline-library@dev') _
+node {
+	runDefaultCDPipeline {}
+}

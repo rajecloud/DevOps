@@ -1,0 +1,67 @@
+# aiops.yaml
+aiopsYaml: |-
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: apmia-elasticsearch--monitoring
+    labels:
+      tier: monitoring
+      app: apmia-es-monitor
+      version: v1
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: apmia-es-monitor
+    template:
+      metadata:
+        labels:
+          app: apmia-es-monitor
+      spec:
+        containers:
+          - resources:
+            env:
+              - name: APMENV_AGENTMANAGER_URL_1
+                value: wss://apmgw.dxi-na1.saas.broadcom.com:443
+              - name: APMENV_AGENTMANAGER_CREDENTIAL
+                value: eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJhZ2VudCI6dHJ1ZSwiZXhwIjo5MjIzMzcyMDM2ODU0Nzc1LCJ0aWQiOjExMDMsImp0aSI6ImM2NWYyZGEyLTUyYzctNGJjNS1iNDFmLWNhMDY5N2UyZmJkNCJ9.G7nb2NNsqHGN2MUPoH2cXjPAZ8hFK9SRExObgclK-UytkUlgtMfZMR3B1wuBsYBt9lzEz167rfaeMZQQo3-z0w
+              - name: APMENV_INTROSCOPE_AGENT_ELASTICSEARCH_PROFILES_ELASTICSEARCH-CONFIG_NAME
+                value: elasticsearch-config
+              - name: APMENV_INTROSCOPE_AGENT_ELASTICSEARCH_PROFILES_ELASTICSEARCH-CONFIG_URL
+                value: https://elasticsearch-config-es-http:9200/
+              - name: APMENV_INTROSCOPE_AGENT_ELASTICSEARCH_PROFILES_ELASTICSEARCH-CONFIG_USERNAME
+                value: elastic
+              - name: APMENV_INTROSCOPE_AGENT_ELASTICSEARCH_PROFILES_ELASTICSEARCH-CONFIG_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    name: elasticsearch-config-es-elastic-user
+                    key: elastic
+              - name: APMENV_INTROSCOPE_AGENT_ELASTICSEARCH_PROFILES_ELASTICSEARCH-CONFIG_MONITORED_GROUPS
+                value: Cluster Information,Index Details,Index Summary,Node Summary, Node Index Details, Node Details,Connections
+              - name: APMENV_INTROSCOPE_AGENT_ELASTICSEARCH_PROFILES
+                value: elasticsearch-config
+              - name: APMENV_INTROSCOPE_AGENT_AGENTNAME
+                value: ElasticSearch-Monitor
+              - name: APMENV_INTROSCOPE_AGENT_CUSTOMPROCESSNAME
+                value: test-demo2-ElasticSearch-Monitor
+              - name: APMENV_INTROSCOPE_AGENT_HOSTNAME
+                value: test-demo2
+              - name: APMENV_INTROSCOPE_AGENT_EXTENSIONS_BUNDLES_BOOT_LOAD
+                value: restmon,Elasticsearch
+            name: apmia-elasticsearch
+            image: gcr.io/PROJECT_ENV/logstash-operator/apmia:latest
+            imagePullPolicy: Always
+            resources:
+              limits:
+                cpu: '1'
+                memory: 1Gi
+              requests:
+                cpu: '1'
+                memory: 1Gi
+            volumeMounts:
+            -  mountPath: /etc/certificate/secret
+               name: login
+        volumes:
+        - name: login
+          secret:
+            secretName: elasticsearch-config-es-elastic-user

@@ -1,0 +1,24 @@
+## Documentation for configuring a MySQL Cluster can be found at https://www.percona.com/doc/kubernetes-operator-for-pxc/index.html#configuration
+## The (yaml) configuration files can be found in the deploy folder
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Image used for the job that will apply the operator yaml files for the relevant command (see below)
+image:
+  repository: gcr.io/broadcom-270220/elasticsearch-operator
+  tag: 1.0.1
+  pullPolicy: IfNotPresent
+
+kubernetesNamespace: "elastic-test-1"
+
+podName: "elastic-operator-0"
+
+# Command to run. Applies yaml from the operator folder:
+## deploy-cluster:  Following command will be used to deploy elasticsearch cluster, scaleup, scale down, plugin instalation
+## delete-cluster:  Following command will delete the elasticsearch cluster
+
+command: deploy-cluster
+
+
+clusterName: cluster1

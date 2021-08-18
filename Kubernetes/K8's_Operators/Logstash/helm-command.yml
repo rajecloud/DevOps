@@ -1,0 +1,5 @@
+repo: https://repo/artifactory/helm-release-candidate-local
+chart: logstash-operator/elasticstack-operator-1.1.3.tgz
+values: ./values.yaml
+command: install
+commandOptions: --wait

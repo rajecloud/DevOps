@@ -1,0 +1,208 @@
+logstashDeploymentCrYaml: |-  
+  apiVersion: charts.helm.k8s.io/v1alpha1
+  kind: Logstash
+  metadata:
+    name: logstash
+  spec:
+    # Default values copied from <project_dir>/helm-charts/logstash/values.yaml
+    
+    affinity: {}
+    binaryFiles: {}
+    config:
+      config.reload.automatic: "true"
+      path.config: /usr/share/logstash/pipeline
+      path.data: /usr/share/logstash/data
+      queue.checkpoint.writes: 1
+      queue.drain: "true"
+      queue.max_bytes: 1gb
+      queue.type: persisted
+      xpack.monitoring.elasticsearch.hosts:
+      - https://elasticsearch-config-es-http:9200
+      xpack.monitoring.elasticsearch.username: "elastic"
+      xpack.monitoring.elasticsearch.password: "${SECRET_ES_PASSWORD}"
+      xpack.monitoring.elasticsearch.ssl.certificate_authority: "/etc/certificate/ca.crt"
+    elasticsearch:
+      host: https://elasticsearch-config-es-http
+      port: 9200
+    exporter:
+      logstash:
+        enabled: false
+        env: {}
+        image:
+          pullPolicy: IfNotPresent
+          repository: bonniernews/logstash_exporter
+          tag: v0.1.2
+        livenessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /metrics
+            port: ls-exporter
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 60
+        path: /metrics
+        port: 9198
+        readinessProbe:
+          failureThreshold: 8
+          httpGet:
+            path: /metrics
+            port: ls-exporter
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 60
+        resources: {}
+        target:
+          path: /metrics
+          port: 9600
+      serviceMonitor:
+        enabled: false
+        interval: 10s
+        labels: {}
+        port: metrics
+        scheme: http
+        scrapeTimeout: 10s
+    extraEnv:
+    - name: SECRET_ES_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          key: elastic
+          name: elasticsearch-config-es-elastic-user
+    extraInitContainers: []
+    files: null
+    filters: null
+    image:
+      pullPolicy: IfNotPresent
+      repository: gcr.io/PROJECT_ENV/logstash-operator/logstash
+      tag: 7.4.0
+    ingress:
+      annotations: {}
+      enabled: false
+      hosts:
+      - logstash.cluster.local
+      path: /
+      tls: []
+    inputs:
+      main: |-
+        input {
+          # udp {
+          #   port => 1514
+          #   type => syslog
+          # }
+          # tcp {
+          #   port => 1514
+          #   type => syslog
+          # }
+          beats {
+            port => 5044
+          }
+          # http {
+          #   port => 8080
+          # }
+          # kafka {
+          #   ## ref: https://www.elastic.co/guide/en/logstash/current/plugins-inputs-kafka.html
+          #   bootstrap_servers => "kafka-input:9092"
+          #   codec => json { charset => "UTF-8" }
+          #   consumer_threads => 1
+          #   topics => ["source"]
+          #   type => "example"
+          # }
+        }
+    livenessProbe:
+      failureThreshold: 6
+      httpGet:
+        path: /
+        port: monitor
+      initialDelaySeconds: 120
+      periodSeconds: 30
+      successThreshold: 1
+      timeoutSeconds: 30
+    logstashJavaOpts: -Xmx1g -Xms1g
+    nodeSelector: {}
+    outputs:
+      main: |-
+        output {
+          stdout { codec => rubydebug }
+          elasticsearch {
+            hosts => ["${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}"]
+            manage_template => false
+            user => "elastic"
+            password => "${SECRET_ES_PASSWORD}"
+            ssl => true
+            ssl_certificate_verification => false
+            cacert => "/etc/certificate/ca.crt"
+            index => "%{[@metadata][beat]}-%{+YYYY.MM.dd}"
+          }
+          # kafka {
+          #   ## ref: https://www.elastic.co/guide/en/logstash/current/plugins-outputs-kafka.html
+          #   bootstrap_servers => "kafka-output:9092"
+          #   codec => json { charset => "UTF-8" }
+          #   compression_type => "lz4"
+          #   topic_id => "destination"
+          # }
+        }
+    patterns: null
+    persistence:
+      accessMode: ReadWriteOnce
+      enabled: false
+      size: 2Gi
+    podAnnotations: {}
+    podDisruptionBudget:
+      maxUnavailable: 1
+    podLabels: {}
+    podManagementPolicy: OrderedReady
+    ports:
+    - containerPort: 5044
+      name: beats
+      protocol: TCP
+    priorityClassName: ""
+    readinessProbe:
+      failureThreshold: 6
+      httpGet:
+        path: /
+        port: monitor
+      initialDelaySeconds: 120
+      periodSeconds: 30
+      successThreshold: 1
+      timeoutSeconds: 30
+    replicaCount: 1
+    resources: {}
+    securityContext:
+      fsGroup: 1000
+      runAsUser: 0
+    service:
+      annotations: {}
+      ports:
+        beats:
+          port: 5044
+          protocol: TCP
+          targetPort: beats
+      type: ClusterIP
+    serviceAccount:
+      create: true
+      name: null
+    terminationGracePeriodSeconds: 30
+    tolerations: []
+    updateStrategy:
+      type: RollingUpdate
+    volumeMounts:
+    - mountPath: /usr/share/logstash/data
+      name: data
+    - mountPath: /usr/share/logstash/patterns
+      name: patterns
+    - mountPath: /usr/share/logstash/files
+      name: files
+    - mountPath: /usr/share/logstash/pipeline
+      name: pipeline
+    - mountPath: /etc/certificate/ca.crt
+      name: certs
+      subPath: ca.crt
+    - mountPath: /etc/certificate/secret
+      name: login
+    volumes:
+    - name: certs
+      secret:
+        secretName: elasticsearch-config-es-http-certs-public
+    - name: login
+      secret:
+        secretName: elasticsearch-config-es-elastic-user
+    
