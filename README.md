@@ -1,5 +1,20 @@
 # DevOps
 
+# Real Time END to END Automation Deployment Config Files has been Available for further use cases..!
+
+## All these codes are developed from scratch for many real time workflow usecases
+
+### Tech Stacks Code Available :
+
+  - Amazon Web Services(AWS)
+  - Kubernetes
+  - Terraform
+  - Jenkins
+  - Linux Shell Scripts
+  - GCP
+
+## Bastion Host Access
+
 ## How to access all other nodes from Bastion Instance.
 
 ### Linux:
